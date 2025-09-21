@@ -11,7 +11,7 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center mb-4">
               <div className="bg-primary-600 text-white p-2 rounded-lg mr-3">
-                <span className="text-xl font-bold">GD</span>
+                <span className="text-xl font-bold">GP</span>
               </div>
               <div>
                 <h3 className="text-xl font-bold">GOPERDOOR</h3>
