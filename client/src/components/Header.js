@@ -26,7 +26,7 @@ const Header = () => {
           <div className="flex-shrink-0">
             <Link to="/" className="flex items-center">
               <div className="bg-primary-600 text-white p-2 rounded-lg mr-3">
-                <span className="text-xl font-bold">GD</span>
+                <span className="text-xl font-bold">GP</span>
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">GOPERDOOR</h1>
