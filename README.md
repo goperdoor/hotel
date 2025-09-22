@@ -146,8 +146,8 @@ hotel/
    JWT_SECRET=your-jwt-secret-key
    
    # 👑 Admin Seeding
-   ADMIN_EMAIL=admin@goperdoor.com
-   ADMIN_PASSWORD=admin123
+   ADMIN_EMAIL=admin@something.com
+   ADMIN_PASSWORD=adminsomethimgidontknowthat
    
    # ☁️ Cloudinary Configuration
    CLOUDINARY_CLOUD_NAME=your-cloud-name
