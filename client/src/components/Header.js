@@ -121,13 +121,38 @@ const Header = () => {
               >
                 Track Order
               </button>
-              <Link
-                to="/owner/login"
-                onClick={() => setIsMenuOpen(false)}
-                className="block w-full text-left bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-md text-base font-medium"
-              >
-                Admin Login
-              </Link>
+              {user && user.role === 'owner' ? (
+                <>
+                  <Link
+                    to="/owner/dashboard"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block w-full text-left text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-base font-medium"
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/owner/analytics"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block w-full text-left text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-base font-medium"
+                  >
+                    Analytics
+                  </Link>
+                  <button
+                    onClick={() => { logout(); setIsMenuOpen(false); }}
+                    className="block w-full text-left text-red-600 hover:text-red-700 px-3 py-2 rounded-md text-base font-medium"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/owner/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block w-full text-left bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-md text-base font-medium"
+                >
+                  Owner Login
+                </Link>
+              )}
             </div>
           </div>
         )}
