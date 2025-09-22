@@ -1,6 +1,7 @@
 import Order from '../models/Order.js';
 import MenuItem from '../models/MenuItem.js';
 import Counter from '../models/Counter.js';
+import { Parser as Json2csvParser } from 'json2csv';
 
 export async function createOrder(req, res) {
   try {
@@ -84,5 +85,51 @@ export async function getOrderByNumber(req, res) {
     res.json(order);
   } catch (e) {
     res.status(400).json({ message: 'Cannot lookup order' });
+  }
+}
+
+export async function exportOrdersCSV(req, res) {
+  try {
+    const { start, end } = req.query;
+    const hotelId = req.user.hotel;
+    const filter = { hotel: hotelId };
+    if (start || end) {
+      filter.createdAt = {};
+      if (start) filter.createdAt.$gte = new Date(start + 'T00:00:00.000Z');
+      if (end) filter.createdAt.$lte = new Date(end + 'T23:59:59.999Z');
+    }
+    const orders = await Order.find(filter).sort('createdAt').populate('items.item');
+    const rows = orders.map(o => ({
+      orderNumber: o.orderNumber,
+      createdAt: o.createdAt.toISOString(),
+      status: o.status,
+      tableNumber: o.tableNumber,
+      total: o.total,
+      items: o.items.map(i => `${i.item?.name || 'Deleted'} x${i.quantity}`).join('; ')
+    }));
+    const fields = ['orderNumber','createdAt','status','tableNumber','total','items'];
+    const parser = new Json2csvParser({ fields });
+    const csv = parser.parse(rows);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=orders_${start||'all'}_${end||'all'}.csv`);
+    res.send(csv);
+  } catch (e) {
+    res.status(500).json({ message: 'Export failed' });
+  }
+}
+
+export async function purgeOrdersByDate(req, res) {
+  try {
+    const { start, end } = req.body;
+    if (!start && !end) return res.status(400).json({ message: 'Provide start or end date' });
+    const filter = { hotel: req.user.hotel };
+    filter.createdAt = {};
+    if (start) filter.createdAt.$gte = new Date(start + 'T00:00:00.000Z');
+    if (end) filter.createdAt.$lte = new Date(end + 'T23:59:59.999Z');
+    // Only allow purging non-active final states (completed, paid, cancelled) to avoid losing in-progress context
+    const result = await Order.deleteMany({ ...filter, status: { $in: ['completed','paid','cancelled'] } });
+    res.json({ deleted: result.deletedCount });
+  } catch (e) {
+    res.status(500).json({ message: 'Purge failed' });
   }
 }

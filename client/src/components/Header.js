@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Menu, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -63,12 +65,21 @@ const Header = () => {
             >
               Track Order
             </button>
-            <Link
-              to="/owner"
-              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Owner Login
-            </Link>
+            {user && user.role === 'owner' && (
+              <>
+                <Link to="/owner/dashboard" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Dashboard</Link>
+                <Link to="/owner/analytics" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Analytics</Link>
+                <button onClick={logout} className="text-red-600 hover:text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Logout</button>
+              </>
+            )}
+            {(!user || user.role !== 'owner') && (
+              <Link
+                to="/owner/login"
+                className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Owner Login
+              </Link>
+            )}
           </nav>
 
           {/* Mobile menu button */}

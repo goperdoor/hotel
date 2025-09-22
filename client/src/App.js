@@ -10,6 +10,7 @@ import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import OwnerLoginPage from './pages/owner/OwnerLoginPage';
 import OwnerDashboard from './pages/owner/OwnerDashboard';
+import OwnerAnalytics from './pages/owner/OwnerAnalytics';
 import OrderTrackingPage from './pages/OrderTrackingPage';
 
 // Styles
@@ -34,6 +35,7 @@ function App() {
               {/* Owner */}
               <Route path="/owner/login" element={<OwnerLoginPage />} />
               <Route path="/owner/dashboard" element={<ProtectedRoute roles={['owner']}><OwnerDashboard /></ProtectedRoute>} />
+              <Route path="/owner/analytics" element={<ProtectedRoute roles={['owner']}><OwnerAnalytics /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

@@ -44,6 +44,17 @@ export const orderApi = {
   get: (id) => request(`/orders/${id}`),
   remove: (token, id) => request(`/orders/${id}`, { method: 'DELETE', token }),
   byNumber: (number) => request(`/orders/number/${number}`),
+  exportRange: async (token, start, end) => {
+    const params = new URLSearchParams();
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    const headers = { Authorization: `Bearer ${token}` };
+    const res = await fetch(`${API_BASE}/orders/owner/export?${params.toString()}`, { headers });
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
+    return blob; // caller handles download
+  },
+  purgeRange: (token, start, end) => request('/orders/owner/purge', { method: 'POST', body: { start, end }, token }),
 };
 
 export const uploadApi = {
