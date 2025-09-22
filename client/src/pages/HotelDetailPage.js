@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Star, Clock, MapPin, ArrowLeft, IndianRupee, Plus, UtensilsCrossed } from 'lucide-react';
 import { hotelApi, menuApi, orderApi } from '../services/api';
+import { addStoredOrder } from '../utils/orderStorage';
 
 const HotelDetailPage = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const HotelDetailPage = () => {
   const [placing, setPlacing] = useState(false);
   const [orderId, setOrderId] = useState(null);
   const [orderNumber, setOrderNumber] = useState(null);
+  const [tableNumber, setTableNumber] = useState('');
 
   useEffect(() => {
     if (!hotelId) return;
@@ -48,10 +50,13 @@ const HotelDetailPage = () => {
 
   const placeOrder = async () => {
     if (!cart.length) return;
+    if (!tableNumber.trim()) { alert('Enter table number'); return; }
     setPlacing(true);
     try {
-  const payload = { hotelId: hotelId, items: cart.map(ci => ({ item: ci.item._id, quantity: ci.quantity, price: ci.item.price })) };
+  const payload = { hotelId: hotelId, tableNumber: tableNumber.trim(), items: cart.map(ci => ({ item: ci.item._id, quantity: ci.quantity, price: ci.item.price })) };
   const order = await orderApi.create(payload);
+  // persist minimal order info locally for non-auth users
+  addStoredOrder(order);
   setOrderId(order._id);
   if (order.orderNumber != null) setOrderNumber(order.orderNumber);
       setCart([]);
@@ -151,11 +156,17 @@ const HotelDetailPage = () => {
                   </div>
                 </div>
               ))}
-              <div className="pt-3 border-t mt-2 text-sm flex items-center justify-between">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Table Number</label>
+                  <input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="e.g. 12" className="w-full border px-3 py-2 rounded text-sm" />
+                </div>
+                <div className="pt-3 border-t mt-2 text-sm flex items-center justify-between">
                 <span>Total</span>
                 <span className="font-semibold">Rs {total}</span>
+                </div>
               </div>
-              <button disabled={!cart.length || placing} onClick={placeOrder} className="w-full bg-primary-600 text-white py-2 rounded text-sm disabled:opacity-50">
+              <button disabled={!cart.length || placing || !tableNumber.trim()} onClick={placeOrder} className="w-full bg-primary-600 text-white py-2 rounded text-sm disabled:opacity-50">
                 {placing ? 'Placing...' : 'Place Order'}
               </button>
               {orderId && (

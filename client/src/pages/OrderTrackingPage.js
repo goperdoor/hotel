@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Search, Clock, CheckCircle, Truck, ArrowLeft, RefreshCw } from 'lucide-react';
 import { orderApi } from '../services/api';
+import { getStoredOrders, clearStoredOrders, updateStoredOrderStatus } from '../utils/orderStorage';
 
 // Inline helper utilities (previously imported from missing helpers file)
 const formatCurrency = (n) => `Rs ${Number(n || 0).toFixed(2)}`;
@@ -15,6 +16,7 @@ const getStatusClass = (status) => {
     case 'preparing': return 'bg-yellow-100 text-yellow-700';
     case 'ready': return 'bg-indigo-100 text-indigo-700';
     case 'completed': return 'bg-green-100 text-green-700';
+    case 'paid': return 'bg-emerald-100 text-emerald-700';
     case 'cancelled': return 'bg-red-100 text-red-700';
     default: return 'bg-gray-100 text-gray-600';
   }
@@ -25,7 +27,8 @@ const getOrderProgress = (status) => {
     accepted: 30,
     preparing: 60,
     ready: 85,
-    completed: 100,
+    completed: 95,
+    paid: 100,
     cancelled: 0,
   };
   return map[status] ?? 0;
@@ -43,6 +46,19 @@ const OrderTrackingPage = () => {
   const [orderNumber, setOrderNumber] = useState(urlOrderNumber || '');
   const [trackingData, setTrackingData] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
+  const [storedOrders, setStoredOrders] = useState([]);
+
+  useEffect(() => {
+    setStoredOrders(getStoredOrders());
+  }, []);
+
+  // refresh stored orders periodically (in case other pages updated)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setStoredOrders(getStoredOrders());
+    }, 4000);
+    return () => clearInterval(id);
+  }, []);
 
   // Track order function
   const trackOrder = async (orderNum = orderNumber) => {
@@ -55,6 +71,9 @@ const OrderTrackingPage = () => {
     try {
       const order = await orderApi.byNumber(orderNum.trim());
       setTrackingData(order);
+      // persist latest status locally for recent orders list
+      updateStoredOrderStatus(order.orderNumber ?? order._id, order.status);
+      setStoredOrders(getStoredOrders());
       // Real-time socket updates removed until socket service is implemented
     } catch (error) {
       toast.error(error.message || 'Order not found');
@@ -81,7 +100,8 @@ const OrderTrackingPage = () => {
   // Poll every 3s while order is active
   useEffect(() => {
     if (!trackingData || !orderNumber) return;
-    if (['completed','cancelled'].includes(trackingData.status)) return; // stop polling for terminal states
+    // Continue polling after 'completed' so it can transition to 'paid'
+    if (['cancelled','paid'].includes(trackingData.status)) return; // terminal states
     const id = setInterval(() => {
       if (!isTracking) {
         trackOrder(orderNumber);
@@ -140,6 +160,31 @@ const OrderTrackingPage = () => {
               )}
             </button>
           </form>
+          {storedOrders.length > 0 && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-700">Recent Orders (local)</h3>
+                <button onClick={() => { clearStoredOrders(); setStoredOrders([]); }} className="text-xs text-red-600 hover:underline">Clear All</button>
+              </div>
+              <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                {storedOrders.map(o => {
+                  const num = o.orderNumber != null ? String(o.orderNumber).padStart(4,'0') : (o._id ? o._id.slice(-6) : '----');
+                  return (
+                    <button
+                      key={(o.orderNumber != null ? 'num-'+o.orderNumber : o._id) + o.status}
+                      onClick={() => { setOrderNumber(num); trackOrder(num); }}
+                      className="w-full flex items-center justify-between text-left text-xs px-3 py-2 rounded border hover:bg-gray-50"
+                    >
+                      <span className="font-mono">#{num}</span>
+                      <span className={`capitalize px-2 py-0.5 rounded ${getStatusClass(o.status)}`}>{o.status}</span>
+                      <span className="text-gray-500">Rs {o.total}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* removed local storage disclaimer per user request */}
+            </div>
+          )}
         </div>
 
         {/* Order Details */}
@@ -150,7 +195,7 @@ const OrderTrackingPage = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    Order #{String(trackingData.orderNumber).padStart(4,'0')}
+                    Order #{String(trackingData.orderNumber).padStart(4,'0')} {trackingData.tableNumber && <span className="text-base font-medium text-gray-500 ml-2">(Table {trackingData.tableNumber})</span>}
                   </h2>
                   <p className="text-gray-600">
                     Placed on {formatDateTime(trackingData.createdAt)}
@@ -275,6 +320,7 @@ const OrderProgress = ({ status }) => {
     { key: 'preparing', label: 'Preparing', icon: Clock },
     { key: 'ready', label: 'Ready', icon: Truck },
     { key: 'completed', label: 'Completed', icon: CheckCircle },
+    { key: 'paid', label: 'Paid', icon: CheckCircle },
   ];
 
   const currentStepIndex = steps.findIndex(step => step.key === status);
@@ -285,6 +331,24 @@ const OrderProgress = ({ status }) => {
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
         <p className="text-red-800 font-medium">Order Cancelled</p>
         <p className="text-red-600 text-sm">Your order has been cancelled.</p>
+      </div>
+    );
+  }
+
+  if (status === 'paid') {
+    return (
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">Order Status</h3>
+          <span className="text-sm text-gray-600">100% Complete</span>
+        </div>
+        <div className="progress-bar mb-6">
+          <div className="progress-bar-fill" style={{ width: '100%' }}></div>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+          <p className="text-emerald-800 font-medium">Payment Received</p>
+          <p className="text-emerald-700 text-sm">Thank you! Your order has been completed and paid.</p>
+        </div>
       </div>
     );
   }

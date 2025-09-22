@@ -18,6 +18,7 @@ const OwnerDashboard = () => {
   const [orderFilter, setOrderFilter] = useState('active');
   const [expandedOrders, setExpandedOrders] = useState({});
   const [orderSearch, setOrderSearch] = useState('');
+  const [activeTab, setActiveTab] = useState('menu');
   const toggleOrderExpand = (id) => {
     setExpandedOrders(prev => ({ ...prev, [id]: !prev[id] }));
   };
@@ -37,6 +38,19 @@ const OwnerDashboard = () => {
 
   useEffect(() => { loadMenu(); loadOrders(); // eslint-disable-next-line
   }, [token]);
+
+  // auto-refresh orders every 5s while on orders tab and user authenticated
+  useEffect(() => {
+    if (!token) return;
+    if (activeTab !== 'orders') return;
+    const id = setInterval(() => {
+      // avoid overlapping if already loading
+      if (!loadingOrders) {
+        loadOrders();
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [token, activeTab, loadingOrders]);
 
   const handleChange = e => {
     const { name, value, type, checked } = e.target;
@@ -101,8 +115,9 @@ const OwnerDashboard = () => {
     if (s === 'accepted') buttons.push({ label: 'Start Prep', to: 'preparing' });
     if (s === 'preparing') buttons.push({ label: 'Mark Ready', to: 'ready' });
     if (s === 'ready') buttons.push({ label: 'Complete', to: 'completed' });
+    if (s === 'completed') buttons.push({ label: 'Mark Paid', to: 'paid' });
     // universal cancel option until finished/cancelled
-    if (!['completed','cancelled'].includes(s)) buttons.push({ label: 'Cancel', to: 'cancelled', variant: 'danger' });
+    if (!['completed','cancelled','paid'].includes(s)) buttons.push({ label: 'Cancel', to: 'cancelled', variant: 'danger' });
     return buttons;
   };
 
@@ -113,11 +128,11 @@ const OwnerDashboard = () => {
       case 'preparing': return 'bg-indigo-100 text-indigo-700 border border-indigo-200';
       case 'ready': return 'bg-purple-100 text-purple-700 border border-purple-200';
       case 'completed': return 'bg-green-100 text-green-700 border border-green-200';
+      case 'paid': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
       case 'cancelled': return 'bg-red-100 text-red-600 border border-red-200';
       default: return 'bg-gray-100 text-gray-600 border border-gray-200';
     }
   };
-  const [activeTab, setActiveTab] = useState('menu');
 
   return (
     <div className="p-6">
@@ -253,7 +268,7 @@ const OwnerDashboard = () => {
           {(() => {
             const filtered = orders.filter(o => {
               if (orderFilter === 'all') return true;
-              if (orderFilter === 'active') return !['completed','cancelled'].includes(o.status);
+              if (orderFilter === 'active') return !['completed','cancelled','paid'].includes(o.status);
               return o.status === orderFilter; // completed or cancelled specific
             });
             const searched = filtered.filter(o => {
@@ -276,7 +291,7 @@ const OwnerDashboard = () => {
                         className="text-[10px] px-2 py-0.5 rounded border bg-gray-50 hover:bg-gray-100 flex items-center gap-1"
                       >{expandedOrders[o._id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}{expandedOrders[o._id] ? 'Hide' : 'Show'}</button>
                     </p>
-                    <p className="text-xs text-gray-500">Total Rs {o.total}</p>
+                    <p className="text-xs text-gray-500">Table {o.tableNumber} • Total Rs {o.total}</p>
                     { (o.customerName || o.customerContact) && (
                       <p className="text-[11px] text-gray-500 mt-1">{o.customerName} {o.customerContact && '• '+o.customerContact}</p>
                     )}
@@ -299,7 +314,7 @@ const OwnerDashboard = () => {
                         >{iconMap[btn.label]}{btn.label}</button>
                       );
                     })}
-                    {['completed','cancelled'].includes(o.status) && (
+                    {['completed','cancelled','paid'].includes(o.status) && (
                       <button
                         disabled={isUpdating}
                         onClick={() => deleteOrder(o._id)}

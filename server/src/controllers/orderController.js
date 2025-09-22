@@ -4,8 +4,10 @@ import Counter from '../models/Counter.js';
 
 export async function createOrder(req, res) {
   try {
-    const { hotelId, items, customerName, customerContact } = req.body;
+    const { hotelId, items, customerName, customerContact, tableNumber } = req.body;
     if (!items || !items.length) return res.status(400).json({ message: 'No items' });
+    if (!tableNumber || String(tableNumber).trim() === '') return res.status(400).json({ message: 'Table number required' });
+    const normalizedTable = String(tableNumber).trim();
     const menuItems = await MenuItem.find({ _id: { $in: items.map(i => i.item) }, hotel: hotelId, active: true });
     const total = items.reduce((sum, i) => {
       const found = menuItems.find(m => m._id.toString() === i.item);
@@ -18,7 +20,7 @@ export async function createOrder(req, res) {
       { upsert: true, new: true }
     );
     const orderNumber = counter.seq; // sequential integer
-    const order = await Order.create({ hotel: hotelId, items, total, customerName, customerContact, orderNumber });
+    const order = await Order.create({ hotel: hotelId, items, total, customerName, customerContact, tableNumber: normalizedTable, orderNumber });
     res.status(201).json(order);
   } catch (e) {
     res.status(400).json({ message: 'Cannot create order' });
@@ -40,7 +42,7 @@ export async function updateOrderStatus(req, res) {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const allowed = ['accepted', 'preparing', 'ready', 'completed', 'cancelled'];
+  const allowed = ['accepted', 'preparing', 'ready', 'completed', 'paid', 'cancelled'];
     if (!allowed.includes(status)) return res.status(400).json({ message: 'Invalid status' });
     const order = await Order.findOneAndUpdate({ _id: id, hotel: req.user.hotel }, { status }, { new: true });
     if (!order) return res.status(404).json({ message: 'Not found' });
